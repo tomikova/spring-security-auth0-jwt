@@ -1,0 +1,25 @@
+server:
+  port: 9080
+
+spring:
+  application:
+    name: auth-server
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.hazelcast.HazelcastAutoConfiguration
+
+jwt:
+  issuer: Madworks
+  # access_token expiration - 5min
+  ttl-mills: 300000
+  # how often will private/public keys be rotated - 15min
+  # be aware that exclusive lock is obtained for 5 minutes by ShedLock scheduler
+  key-rotation-frequency-mills: 900000
+  # when will first rotation occur
+  # 0 - immediately at service start
+  # -1 - first time on next rotation cycle defined by frequency
+  initial-key-rotation-delay-mills: 0
+
+hazelcast-client:
+  # IP address of hazelcast member nodes
+  members: 127.0.0.1:5701
