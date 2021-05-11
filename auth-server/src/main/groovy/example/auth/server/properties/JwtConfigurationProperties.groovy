@@ -7,8 +7,10 @@ import org.springframework.context.annotation.Configuration
 @ConfigurationProperties(prefix = "jwt")
 class JwtConfigurationProperties {
     String issuer
-    Long ttlMills
-    Long keyRotationFrequencyMills
-    Long initialKeyRotationDelayMills = -1L
-    String minLockLeaseTime = "PT5M"
+    Long ttlMills = 300000
+    Long keyRotationFrequencyMills = 900000
+    Long initialKeyRotationDelayMills = 20000
+    String minLockLeaseTime = "10s"
+    String maxLockLeaseTime = "15s"
+    Boolean loadKeysFromVaultOnStart = false
 }

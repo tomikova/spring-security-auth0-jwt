@@ -24,6 +24,7 @@ import java.security.spec.X509EncodedKeySpec
 @Service
 class KeyPairProvider {
 
+    Long initialKeyRotationDelayMills
     private RSAPublicKey pubKey
     private RSAPrivateKey priKey
     private String kid
@@ -32,23 +33,47 @@ class KeyPairProvider {
     private JwtConfigurationProperties jwtConfigurationProperties
 
     @Autowired
-    KeyPairProvider(VaultService vaultService, @Lazy HazelcastService hazelcastService,
-                    JwtConfigurationProperties jwtConfigurationProperties) {
+    KeyPairProvider(VaultService vaultService, @Lazy HazelcastService hazelcastService, JwtConfigurationProperties jwtConfigurationProperties) {
         this.vaultService = vaultService
         this.hazelcastService = hazelcastService
         this.jwtConfigurationProperties = jwtConfigurationProperties
+        if (jwtConfigurationProperties.initialKeyRotationDelayMills > 0 && !jwtConfigurationProperties.loadKeysFromVaultOnStart) {
+            this.initialKeyRotationDelayMills = 0
+        } else {
+            this.initialKeyRotationDelayMills = jwtConfigurationProperties.initialKeyRotationDelayMills
+        }
     }
 
     @PostConstruct
-    void loadKeysFromVault() {
-        // assuming that initial keys already exist in Vault
-        reloadKeys()
+    private void loadKeysFromVault() {
+        // fetch initial keys from Vault
+        if (jwtConfigurationProperties.loadKeysFromVaultOnStart) {
+            reloadKeys()
+        }
+    }
+
+    void reloadKeys() {
+        JwtKeyData rotatedKeys = (JwtKeyData) vaultService.getSecret('priKey')
+        if (rotatedKeys) {
+            log.info "***** Rotating keys *****"
+            KeyFactory kf = KeyFactory.getInstance("RSA")
+            PKCS8EncodedKeySpec keySpecPKCS8 = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(rotatedKeys.getPriKey()))
+            X509EncodedKeySpec keySpecX509 = new X509EncodedKeySpec(Base64.getDecoder().decode(rotatedKeys.getPubKey()))
+            this.priKey = (RSAPrivateKey) kf.generatePrivate(keySpecPKCS8)
+            this.pubKey = (RSAPublicKey) kf.generatePublic(keySpecX509)
+            this.kid = rotatedKeys.getKid()
+        }
     }
 
     @Scheduled(fixedRateString = "#{jwtConfigurationProperties.keyRotationFrequencyMills}",
-            initialDelayString = "#{jwtConfigurationProperties.initialKeyRotationDelayMills}")
-    @SchedulerLock(name = "KeyPairProvider_generateKeyPair", lockAtLeastFor = "5m")
+            initialDelayString = "#{keyPairProvider.initialKeyRotationDelayMills}")
+    @SchedulerLock(name = "KeyPairProvider_generateKeyPair",
+            lockAtLeastFor = "#{jwtConfigurationProperties.minLockLeaseTime}",
+            lockAtMostFor = "#{jwtConfigurationProperties.maxLockLeaseTime}")
     protected void generateKeyPair() {
+        log.info "###############################################"
+        log.info "########### GENERATING NEW KEY-PAIR ###########"
+        log.info "###############################################"
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA")
         kpg.initialize(2048)
         KeyPair kp = kpg.generateKeyPair()
@@ -63,17 +88,6 @@ class KeyPairProvider {
         hazelcastService.mapPut('keyChangeTime', (new Date(System.currentTimeMillis())).toString())
     }
 
-    void reloadKeys() {
-        log.info "Rotating keys"
-        JwtKeyData rotatedKeys = (JwtKeyData) vaultService.getSecret('priKey')
-        KeyFactory kf = KeyFactory.getInstance("RSA")
-        PKCS8EncodedKeySpec keySpecPKCS8 = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(rotatedKeys.getPriKey()))
-        X509EncodedKeySpec keySpecX509 = new X509EncodedKeySpec(Base64.getDecoder().decode(rotatedKeys.getPubKey()))
-        this.priKey = (RSAPrivateKey) kf.generatePrivate(keySpecPKCS8)
-        this.pubKey = (RSAPublicKey) kf.generatePublic(keySpecX509)
-        this.kid = rotatedKeys.getKid()
-    }
-
     RSAPublicKey getPubKey() {
         return pubKey
     }
@@ -85,4 +99,5 @@ class KeyPairProvider {
     String getKid() {
         return kid
     }
+
 }

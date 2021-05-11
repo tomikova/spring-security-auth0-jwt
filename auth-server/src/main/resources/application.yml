@@ -13,13 +13,15 @@ jwt:
   # access_token expiration - 5min
   ttl-mills: 300000
   # how often will private/public keys be rotated - 15min
-  # be aware that exclusive lock is obtained for 5 minutes by ShedLock scheduler
   key-rotation-frequency-mills: 900000
   # when will first rotation occur
   # 0 - immediately at service start
-  # -1 - first time on next rotation cycle defined by frequency
-  initial-key-rotation-delay-mills: 0
+  initial-key-rotation-delay-mills: 20000
+  # minimum time to hold lock on distributed task after acquiring
+  min-lock-lease-time: 5s
+  # maximum time to hold lock on distributed task after acquiring
+  max-lock-lease-time: 10s
 
 hazelcast-client:
-  # IP address of hazelcast member nodes
+  # IP addresses of Hazelcast member nodes
   members: 127.0.0.1:5701
