@@ -1,7 +1,6 @@
 # Spring Security Auth0 Demo Project
 
-Project was made for demo purposes and demonstrates Auth0 flow where `Spring Vault` is used as an interface for communication with `Vault`  
-which acts as a storage for dynamically generated and periodically rotated public/private key pair used for asymmetric JWT token signature (RSA algorithm).
+Project was made for demo purposes and demonstrates Auth0 flow where `Spring Vault` is used as an interface for communication with `Vault` which acts as a storage for dynamically generated and periodically rotated public/private key pair used for asymmetric JWT token signature (RSA algorithm).
 
 Project consists of following parts:
 - Auth server
@@ -10,7 +9,7 @@ Project consists of following parts:
 
 ## Auth Server
 
-###Exposed endpoints
+### Exposed endpoints
 
 - `/auth/login` - Authenticates user by supported authentication method (username and password as of now for simplicity). Result of successful authentication is 
   JWT `access_token` and JWT `refresh_token` signed by private key.   
@@ -71,14 +70,12 @@ Project consists of following parts:
 - Distributed locking with [ShedLock](https://github.com/lukas-krecan/ShedLock)
 - Hazelcast IMDG as a locking provider and event bus across auth server instances
 
-As code to generate new key pair is in auth server itself and triggered by scheduler, to be able to run this task only once across all running instances `ShedLock` is used.  
-Please note that ShedLock is not distributed scheduler and here is used only to simulate this task by acquiring exclusive lock on `Hazelcast`.  
+As code to generate new key pair is in auth server itself and triggered by scheduler, to be able to run this task only once across all running instances `ShedLock` is used.  Please note that ShedLock is not distributed scheduler and here is used only to simulate this task by acquiring exclusive lock on `Hazelcast`.  
 Key pair generation should be isolated process and triggered by other solutions for distributed scheduling. In that scenario Auth server should be notified of this event to be able to reload keys.  
 In this project event listener is registered on particular Hazelcast map. Event is fired when data of last key rotation timestamp is added or updated in this map.  
 That way every instance of Auth server is notified and can reach to Vault for new keys.
 
-Secrets in Vault might look like below where `keyData` is key for currently used key par and kid and other json keys represent previously generated kids and corresponding  
-public keys as there will be still active tokens in need of old public token. After some time or iteration old key-value pairs can be removed from Vault.
+Secrets in Vault might look like below where `keyData` is key for currently used key par and kid and other json keys represent previously generated kids and corresponding public keys as there will be still active tokens in need of old public token. After some time or iteration old key-value pairs can be removed from Vault.
 
 ```json
 {
@@ -167,7 +164,7 @@ curl -H 'Accept: application/json' -H "Authorization: Bearer eyJraWQiOiI4MWQ4N2I
 
 ## Setup
 
-1. **Hazelcast**
+**1. Hazelcast**
 
 ```text
 docker run -e HZ_NETWORK_PUBLICADDRESS=localhost:5701 -p 5701:5701 --name=dev-hazelcast hazelcast/hazelcast:4.1.3
@@ -178,7 +175,7 @@ Stop it with
 docker stop dev-hazelcast
 ```
 
-2. **Vault**
+**2. Vault**
 
 ```text
 docker run --cap-add=IPC_LOCK -e VAULT_DEV_ROOT_TOKEN_ID=myroot -e VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200 -p 8200:8200 -d --name=dev-vault vault
@@ -191,7 +188,7 @@ docker stop dev-vault
 
 You should be able to login to Vault web interface on `http://localhost:8200/ui`. On login form enter value of VAULT_DEV_ROOT_TOKEN, here it is `myroot`.
 
-3. **Auth server**
+**3. Auth server**
 
 Clone or download this repository and navigate to `/auth-server` directory.  
 You can run this project:  
@@ -216,7 +213,7 @@ java -jar auth-server-0.0.1-SNAPSHOT.jar --server.port=8083
 ...
 ```
 
-4. **Resource server**  
+**4. Resource server**  
 Same as previous step with Auth server
 ```text
 java -jar resource-server-0.0.1-SNAPSHOT.jar --server.port=8090
